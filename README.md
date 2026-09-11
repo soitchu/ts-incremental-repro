@@ -5,7 +5,18 @@ input versions that match disk but carries `semanticDiagnosticsPerFile` entries 
 earlier state. No input change can ever clear it. Only `--force`, or deleting the
 buildinfo, recovers.
 
-Reproduces on `typescript@5.9.3` and `@typescript/native-preview@7.0.0-dev.20260209.1`.
+Reproduces on every compiler tested, including the released TypeScript 7:
+
+| compiler | version | reproduces |
+| --- | --- | --- |
+| `typescript` | 5.9.3 | yes |
+| `typescript` | 7.0.2 (`latest`) | yes |
+| `typescript` | 7.1.0-dev.20260911.1 (`next`) | yes |
+| `@typescript/native-preview` | 7.0.0-dev.20260209.1 | yes |
+| `@typescript/native-preview` | 7.0.0-dev.20260707.2 (`latest`) | yes |
+
+So this is not specific to the Go port, and it is not something a compiler upgrade
+fixes. Checked 2026-09-11.
 
 ## Run it
 
@@ -13,6 +24,13 @@ Reproduces on `typescript@5.9.3` and `@typescript/native-preview@7.0.0-dev.20260
 npm install
 npm run repro:tsgo   # exits 1 while the behaviour is present
 npm run repro:tsc
+```
+
+To try another compiler, install it over the top and point the script at its binary:
+
+```bash
+npm install --no-save typescript@7.0.2
+node repro.mjs node_modules/.bin/tsc
 ```
 
 Output:
@@ -102,7 +120,10 @@ Both recovered every time. So the producer is still unidentified.
 
 ## CI
 
-`.github/workflows/repro.yml` runs the repro against both pinned compilers on every push and
-weekly. **A green run means the behaviour still reproduces.** The job fails if a compiler
-stops replaying the stale diagnostic, which is the signal that this can be closed. A separate
-informational job runs against `@typescript/native-preview@latest`.
+`.github/workflows/repro.yml` runs the repro against three pinned compilers on every push and
+weekly. **A green run means the behaviour still reproduces.** A job fails if its compiler
+stops replaying the stale diagnostic, which is the signal that this can be closed.
+
+Two further jobs track the floating `typescript@next` and `@typescript/native-preview@latest`
+tags. They are `continue-on-error`, since a nightly can break for unrelated reasons; read them
+as a signal rather than a gate.

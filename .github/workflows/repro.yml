@@ -10,60 +10,80 @@ on:
 
 jobs:
   pinned:
-    name: ${{ matrix.compiler }}
+    name: ${{ matrix.label }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        compiler: [tsc, tsgo]
+        include:
+          - label: typescript@5.9.3
+            install: typescript@5.9.3
+            bin: tsc
+          - label: typescript@7.0.2
+            install: typescript@7.0.2
+            bin: tsc
+          - label: native-preview@7.0.0-dev.20260209.1
+            install: '@typescript/native-preview@7.0.0-dev.20260209.1'
+            bin: tsgo
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: npm install
+      - run: npm install --no-save ${{ matrix.install }}
 
       - name: Reproduce
         run: |
           set +e
-          node repro.mjs "node_modules/.bin/${{ matrix.compiler }}" | tee out.txt
+          node repro.mjs "node_modules/.bin/${{ matrix.bin }}" | tee out.txt
           rc=${PIPESTATUS[0]}
           set -e
 
           {
-            echo "### ${{ matrix.compiler }}"
+            echo "### ${{ matrix.label }}"
             echo '```'
             cat out.txt
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
           if [ "$rc" -eq 0 ]; then
-            echo "::error::${{ matrix.compiler }} no longer replays the stale diagnostic. The behaviour changed, update the README."
+            echo "::error::${{ matrix.label }} no longer replays the stale diagnostic. The behaviour changed, update the README."
             exit 1
           fi
-          echo "Reproduced: ${{ matrix.compiler }} replayed a stale TS2305."
+          echo "Reproduced: ${{ matrix.label }} replayed a stale TS2305."
 
-  latest:
-    name: tsgo@latest (informational)
+  floating:
+    name: ${{ matrix.label }} (informational)
     runs-on: ubuntu-latest
     continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: typescript@next
+            install: typescript@next
+            bin: tsc
+          - label: native-preview@latest
+            install: '@typescript/native-preview@latest'
+            bin: tsgo
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
       - run: npm install
-      - run: npm install --no-save @typescript/native-preview@latest
+      - run: npm install --no-save ${{ matrix.install }}
 
-      - name: Reproduce against the newest native-preview
+      - name: Reproduce against a floating tag
         run: |
           set +e
-          node repro.mjs node_modules/.bin/tsgo | tee out.txt
+          node repro.mjs "node_modules/.bin/${{ matrix.bin }}" | tee out.txt
           rc=${PIPESTATUS[0]}
           set -e
 
           {
-            echo "### tsgo@latest"
+            echo "### ${{ matrix.label }}"
             echo '```'
             cat out.txt
             echo '```'
