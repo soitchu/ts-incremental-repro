@@ -1,0 +1,16 @@
+{
+  "name": "ts-incremental-repro",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "workspaces": ["a", "b"],
+  "scripts": {
+    "repro": "node repro.mjs node_modules/.bin/tsgo",
+    "repro:tsc": "node repro.mjs node_modules/.bin/tsc",
+    "repro:tsgo": "node repro.mjs node_modules/.bin/tsgo"
+  },
+  "devDependencies": {
+    "@typescript/native-preview": "7.0.0-dev.20260209.1",
+    "typescript": "5.9.3"
+  }
+}

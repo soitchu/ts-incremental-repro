@@ -1,0 +1,72 @@
+name: repro
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # Weekly, so this starts failing when a release fixes the behaviour.
+    - cron: '0 9 * * 1'
+
+jobs:
+  pinned:
+    name: ${{ matrix.compiler }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [tsc, tsgo]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+
+      - name: Reproduce
+        run: |
+          set +e
+          node repro.mjs "node_modules/.bin/${{ matrix.compiler }}" | tee out.txt
+          rc=${PIPESTATUS[0]}
+          set -e
+
+          {
+            echo "### ${{ matrix.compiler }}"
+            echo '```'
+            cat out.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$rc" -eq 0 ]; then
+            echo "::error::${{ matrix.compiler }} no longer replays the stale diagnostic. The behaviour changed, update the README."
+            exit 1
+          fi
+          echo "Reproduced: ${{ matrix.compiler }} replayed a stale TS2305."
+
+  latest:
+    name: tsgo@latest (informational)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install
+      - run: npm install --no-save @typescript/native-preview@latest
+
+      - name: Reproduce against the newest native-preview
+        run: |
+          set +e
+          node repro.mjs node_modules/.bin/tsgo | tee out.txt
+          rc=${PIPESTATUS[0]}
+          set -e
+
+          {
+            echo "### tsgo@latest"
+            echo '```'
+            cat out.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          [ "$rc" -eq 0 ] && echo "Fixed upstream." || echo "Still reproduces."
